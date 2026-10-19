@@ -8,7 +8,7 @@ Tickets get a due date from their priority (SLA), follow a simple status workflo
 searched, filtered and commented. A stats endpoint gives the numbers a support team usually
 reports on: open tickets, overdue tickets and average resolution time.
 
-> **FR** — API REST de gestion de tickets de support (FastAPI, PostgreSQL, SQLAlchemy, Alembic) :
+> **FR** - API REST de gestion de tickets de support (FastAPI, PostgreSQL, SQLAlchemy, Alembic) :
 > SLA par priorité, workflow de statuts, recherche et pagination, commentaires, statistiques,
 > documentation OpenAPI, tests automatisés et CI.
 
