@@ -5,11 +5,12 @@
 A REST API for an IT support desk, built with FastAPI and PostgreSQL.
 
 Tickets get a due date from their priority (SLA), follow a simple status workflow and can be
-searched and filtered.
+searched, filtered and commented. A stats endpoint gives the numbers a support team usually
+reports on: open tickets, overdue tickets and average resolution time.
 
 > **FR** — API REST de gestion de tickets de support (FastAPI, PostgreSQL, SQLAlchemy, Alembic) :
-> SLA par priorité, workflow de statuts, recherche et pagination, documentation OpenAPI,
-> tests automatisés et CI.
+> SLA par priorité, workflow de statuts, recherche et pagination, commentaires, statistiques,
+> documentation OpenAPI, tests automatisés et CI.
 
 ## Features
 
@@ -19,6 +20,8 @@ searched and filtered.
 - Status workflow with checks: `open → in_progress → resolved → closed`; resolved tickets can be
   reopened, closed tickets are final. Invalid moves return `409 Conflict`
 - Search (`q`), filters (status, priority, assignee, overdue) and pagination
+- Comments and internal notes that can be hidden from the requester
+- `/stats` for reporting
 - API key for write operations (`X-API-Key`)
 - OpenAPI documentation generated from the code (`/docs`, `/redoc`, `/openapi.json`)
 
@@ -69,6 +72,18 @@ curl -X PATCH http://localhost:8000/tickets/1 \
 # Overdue high-priority tickets
 curl "http://localhost:8000/tickets?priority=high&overdue=true"
 
+# Numbers for the weekly report
+curl http://localhost:8000/stats
+```
+
+```json
+{
+  "total": 42,
+  "by_status": {"open": 12, "in_progress": 5, "resolved": 20, "closed": 5},
+  "by_priority": {"critical": 2, "high": 9, "medium": 21, "low": 10},
+  "overdue": 3,
+  "avg_resolution_hours": 6.4
+}
 ```
 
 ## Endpoints
@@ -79,7 +94,10 @@ curl "http://localhost:8000/tickets?priority=high&overdue=true"
 | `GET` | `/tickets` | List, filter, search, paginate |
 | `GET` | `/tickets/{id}` | Get a ticket |
 | `PATCH` | `/tickets/{id}` | Update, assign, change status or priority |
-| `DELETE` | `/tickets/{id}` | Delete a ticket |
+| `DELETE` | `/tickets/{id}` | Delete a ticket and its comments |
+| `GET` | `/tickets/{id}/comments` | List comments (`include_internal=false` hides notes) |
+| `POST` | `/tickets/{id}/comments` | Add a comment or an internal note |
+| `GET` | `/stats` | Counts, overdue tickets, average resolution time |
 | `GET` | `/health` | Health check |
 
 ## Project structure
@@ -94,7 +112,7 @@ app/
   sla.py           SLA rules and status workflow (pure functions)
   services.py      business logic and queries
   deps.py          API key dependency
-  routers/         API endpoints
+  routers/         tickets, comments, stats
 alembic/           database migrations
 tests/             pytest suite
 ```
@@ -121,15 +139,13 @@ pytest --cov=app
 
 Locally the tests use SQLite in memory, so nothing has to be installed. In CI they run against a
 real PostgreSQL 16 service (`TEST_DATABASE_URL`). The suite covers the SLA rules, the status
-workflow, filters and pagination and API key checks.
+workflow, filters and pagination, API key checks, comments and stats.
 
 ## Possible next steps
 
-- Comments and internal notes on tickets
-- Statistics endpoint for reporting
 - Users and roles instead of a single API key
 - Email notification when a ticket becomes overdue
-- Export of tickets to CSV
+- Export of the stats to CSV
 
 ## License
 

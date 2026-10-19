@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Priority, Status, Ticket
-from app.schemas import TicketCreate, TicketUpdate
+from app.models import Comment, Priority, Status, Ticket
+from app.schemas import CommentCreate, Stats, TicketCreate, TicketUpdate
 from app.sla import ACTIVE_STATUSES, can_transition, due_date
 
 
@@ -80,3 +80,40 @@ def update_ticket(db: Session, ticket: Ticket, data: TicketUpdate) -> Ticket:
     db.commit()
     db.refresh(ticket)
     return ticket
+
+
+def add_comment(db: Session, ticket: Ticket, data: CommentCreate) -> Comment:
+    comment = Comment(ticket_id=ticket.id, **data.model_dump())
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+def get_stats(db: Session) -> Stats:
+    by_status = dict(db.execute(select(Ticket.status, func.count()).group_by(Ticket.status)).all())
+    by_priority = dict(
+        db.execute(select(Ticket.priority, func.count()).group_by(Ticket.priority)).all()
+    )
+    overdue = db.scalar(
+        select(func.count())
+        .select_from(Ticket)
+        .where(Ticket.status.in_(ACTIVE_STATUSES), Ticket.due_at < datetime.now(UTC))
+    )
+
+    # Done in Python so the same code works on PostgreSQL and SQLite.
+    resolved = db.execute(
+        select(Ticket.created_at, Ticket.resolved_at).where(Ticket.resolved_at.is_not(None))
+    ).all()
+    avg_hours = None
+    if resolved:
+        seconds = sum((done - start).total_seconds() for start, done in resolved)
+        avg_hours = round(seconds / len(resolved) / 3600, 1)
+
+    return Stats(
+        total=sum(by_status.values()),
+        by_status={s.value: by_status.get(s.value, 0) for s in Status},
+        by_priority={p.value: by_priority.get(p.value, 0) for p in Priority},
+        overdue=overdue,
+        avg_resolution_hours=avg_hours,
+    )

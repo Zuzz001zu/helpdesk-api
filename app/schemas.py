@@ -48,8 +48,33 @@ class TicketRead(BaseModel):
         return is_overdue(self.status, self.due_at, datetime.now(UTC))
 
 
+class CommentCreate(BaseModel):
+    author: str = Field(min_length=1, max_length=100)
+    body: str = Field(min_length=1, max_length=5000)
+    internal: bool = Field(default=False, description="Hidden from the requester")
+
+
+class CommentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    ticket_id: int
+    author: str
+    body: str
+    internal: bool
+    created_at: datetime
+
+
 class Page(BaseModel, Generic[T]):
     items: list[T]
     total: int
     limit: int
     offset: int
+
+
+class Stats(BaseModel):
+    total: int
+    by_status: dict[str, int]
+    by_priority: dict[str, int]
+    overdue: int
+    avg_resolution_hours: float | None
