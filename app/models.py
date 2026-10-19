@@ -1,8 +1,8 @@
 import enum
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, String, Text, TypeDecorator
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, String, Text, TypeDecorator
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -57,3 +57,20 @@ class Ticket(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
     due_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
     resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime, default=None)
+
+    comments: Mapped[list["Comment"]] = relationship(
+        back_populates="ticket", cascade="all, delete-orphan", order_by="Comment.created_at"
+    )
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), index=True)
+    author: Mapped[str] = mapped_column(String(100))
+    body: Mapped[str] = mapped_column(Text)
+    internal: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+    ticket: Mapped[Ticket] = relationship(back_populates="comments")
